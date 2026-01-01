@@ -1,0 +1,25 @@
+from docker.io/archlinux:base-devel
+
+RUN pacman-key --init && pacman -Sy --noconfirm \
+    bc \
+    cpio \
+    gettext \
+    clang \
+    libelf \
+    pahole \
+    perl \
+    python \
+    rsync \
+    rust \
+    rust-bindgen \
+    rust-src \
+    tar \
+    xz \
+    sudo \
+    wget \
+    git
+
+RUN useradd -m build && echo "build ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/build
+USER build
+WORKDIR /workspaces
+ENTRYPOINT ["/bin/bash"]

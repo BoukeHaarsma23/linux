@@ -1,0 +1,7 @@
+{
+    "name": "Ubuntu",
+    "build": {
+        "dockerfile": "Containerfile"
+    },
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+}

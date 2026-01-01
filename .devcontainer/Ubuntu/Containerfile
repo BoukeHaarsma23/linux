@@ -1,0 +1,33 @@
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libncurses-dev \
+    gawk \
+    flex \
+    bison \
+    openssl \
+    libssl-dev \
+    dkms \ 
+    libelf-dev \
+    libudev-dev \
+    libpci-dev \
+    libiberty-dev \
+    autoconf \
+    llvm \
+    rsync \
+    bc \
+    debhelper \
+    gawk \
+    lld \
+    zstd
+
+RUN apt-get install -y \
+    git \
+    sudo \
+    wget
+
+RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/build
+USER ubuntu
+WORKDIR /workspaces
+ENTRYPOINT ["/bin/bash"]
