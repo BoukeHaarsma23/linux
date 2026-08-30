@@ -29,7 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/uaccess.h>
 #include <asm/string.h>
 
@@ -49,8 +49,6 @@ struct asyncppp {
 	unsigned long	xmit_flags;
 	u32		xaccm[8];
 	u32		raccm;
-	unsigned int	bytes_sent;
-	unsigned int	bytes_rcvd;
 
 	struct sk_buff	*tpkt;
 	int		tpkt_pos;
@@ -163,7 +161,7 @@ ppp_asynctty_open(struct tty_struct *tty)
 		return -EOPNOTSUPP;
 
 	err = -ENOMEM;
-	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	ap = kzalloc_obj(*ap);
 	if (!ap)
 		goto out;
 
@@ -491,7 +489,7 @@ static void ppp_async_process(struct tasklet_struct *t)
 	/* process received packets */
 	while ((skb = skb_dequeue(&ap->rqueue)) != NULL) {
 		if (skb->cb[0])
-			ppp_input_error(&ap->chan, 0);
+			ppp_input_error(&ap->chan);
 		ppp_input(&ap->chan, skb);
 	}
 
@@ -542,7 +540,7 @@ ppp_async_encode(struct asyncppp *ap)
 	 * and 7 (code-reject) must be sent as though no options
 	 * had been negotiated.
 	 */
-	islcp = proto == PPP_LCP && 1 <= data[2] && data[2] <= 7;
+	islcp = proto == PPP_LCP && count >= 3 && 1 <= data[2] && data[2] <= 7;
 
 	if (i == 0) {
 		if (islcp)

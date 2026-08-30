@@ -414,6 +414,24 @@ static void vdpasim_net_get_config(struct vdpasim *vdpasim, void *config)
 	net_config->status = cpu_to_vdpasim16(vdpasim, VIRTIO_NET_S_LINK_UP);
 }
 
+static int vdpasim_net_set_attr(struct vdpa_mgmt_dev *mdev, struct vdpa_device *dev,
+				const struct vdpa_dev_set_config *config)
+{
+	struct vdpasim *vdpasim = container_of(dev, struct vdpasim, vdpa);
+	struct virtio_net_config *vio_config = vdpasim->config;
+
+	mutex_lock(&vdpasim->mutex);
+
+	if (config->mask & (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
+		ether_addr_copy(vio_config->mac, config->net.mac);
+		mutex_unlock(&vdpasim->mutex);
+		return 0;
+	}
+
+	mutex_unlock(&vdpasim->mutex);
+	return -EOPNOTSUPP;
+}
+
 static void vdpasim_net_setup_config(struct vdpasim *vdpasim,
 				     const struct vdpa_dev_set_config *config)
 {
@@ -435,14 +453,7 @@ static void vdpasim_net_free(struct vdpasim *vdpasim)
 	kvfree(net->buffer);
 }
 
-static void vdpasim_net_mgmtdev_release(struct device *dev)
-{
-}
-
-static struct device vdpasim_net_mgmtdev = {
-	.init_name = "vdpasim_net",
-	.release = vdpasim_net_mgmtdev_release,
-};
+static struct device *vdpasim_net_mgmtdev;
 
 static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 			       const struct vdpa_dev_set_config *config)
@@ -510,7 +521,8 @@ static void vdpasim_net_dev_del(struct vdpa_mgmt_dev *mdev,
 
 static const struct vdpa_mgmtdev_ops vdpasim_net_mgmtdev_ops = {
 	.dev_add = vdpasim_net_dev_add,
-	.dev_del = vdpasim_net_dev_del
+	.dev_del = vdpasim_net_dev_del,
+	.dev_set_attr = vdpasim_net_set_attr
 };
 
 static struct virtio_device_id id_table[] = {
@@ -519,7 +531,6 @@ static struct virtio_device_id id_table[] = {
 };
 
 static struct vdpa_mgmt_dev mgmt_dev = {
-	.device = &vdpasim_net_mgmtdev,
 	.id_table = id_table,
 	.ops = &vdpasim_net_mgmtdev_ops,
 	.config_attr_mask = (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR |
@@ -533,26 +544,25 @@ static int __init vdpasim_net_init(void)
 {
 	int ret;
 
-	ret = device_register(&vdpasim_net_mgmtdev);
-	if (ret) {
-		put_device(&vdpasim_net_mgmtdev);
-		return ret;
-	}
+	vdpasim_net_mgmtdev = root_device_register("vdpasim_net");
+	if (IS_ERR(vdpasim_net_mgmtdev))
+		return PTR_ERR(vdpasim_net_mgmtdev);
 
+	mgmt_dev.device = vdpasim_net_mgmtdev;
 	ret = vdpa_mgmtdev_register(&mgmt_dev);
 	if (ret)
 		goto parent_err;
 	return 0;
 
 parent_err:
-	device_unregister(&vdpasim_net_mgmtdev);
+	root_device_unregister(vdpasim_net_mgmtdev);
 	return ret;
 }
 
 static void __exit vdpasim_net_exit(void)
 {
 	vdpa_mgmtdev_unregister(&mgmt_dev);
-	device_unregister(&vdpasim_net_mgmtdev);
+	root_device_unregister(vdpasim_net_mgmtdev);
 }
 
 module_init(vdpasim_net_init);

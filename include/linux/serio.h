@@ -6,13 +6,14 @@
 #define _SERIO_H
 
 
+#include <linux/cleanup.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/serio.h>
 #include <uapi/linux/serio.h>
 
 extern const struct bus_type serio_bus;
@@ -160,5 +161,7 @@ static inline void serio_continue_rx(struct serio *serio)
 {
 	spin_unlock_irq(&serio->lock);
 }
+
+DEFINE_GUARD(serio_pause_rx, struct serio *, serio_pause_rx(_T), serio_continue_rx(_T))
 
 #endif
